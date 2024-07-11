@@ -1,23 +1,37 @@
-import React, { useState, useLayoutEffect, useRef } from 'react';
+import React, { useState, useLayoutEffect, useRef, useEffect } from 'react';
 import Slide from './Slide';
 import './Slider.css';
 
 const Slider = ({ slides }) => {
-  const visibleSlidesCount = 7; // Number of visible slides
+  const visibleSlidesCount = 7; // Количество видимых слайдов на десктопе
   const slidesLength = slides.length;
-  const totalSlides = slidesLength + 2 * visibleSlidesCount; // Total slides including clones
-  const centralSlideIndex = Math.floor(visibleSlidesCount / 2); // Index of the central slide
+  const totalSlides = slidesLength + 2 * visibleSlidesCount; // Общее количество слайдов, включая клоны
+  const centralSlideIndex = Math.floor(visibleSlidesCount / 2); // Индекс центрального слайда
 
   const [currentIndex, setCurrentIndex] = useState(visibleSlidesCount);
   const [slideWidth, setSlideWidth] = useState(0);
   const [currentZone, setCurrentZone] = useState(null);
-  const [isAnimating, setIsAnimating] = useState(false); // New state for animation lock
-  const [isLoading, setIsLoading] = useState(true); // New state for loading screen
+  const [isAnimating, setIsAnimating] = useState(false); // Новое состояние для блокировки анимации
+  const [isLoading, setIsLoading] = useState(true); // Новое состояние для экрана загрузки
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768); // Состояние для определения мобильной версии
   const sliderRef = useRef(null);
   const animationTimeout = useRef(null);
+  const startX = useRef(0);
+  const endX = useRef(0);
+
+  const fixedSlideWidth = 70; // Фиксированное значение ширины слайда в процентах
+  const slideMargin = 10; // Отступ между слайдами в пикселях
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const nextSlide = (times = 1, delay = 0) => {
-    if (isAnimating) return; // Prevent new animation if already animating
+    if (isAnimating) return; // Предотвращает новую анимацию, если текущая еще не завершена
     setIsAnimating(true);
     clearTimeout(animationTimeout.current);
 
@@ -37,12 +51,12 @@ const Slider = ({ slides }) => {
           }
           return newIndex;
         });
-      }, i * delay); // Adjust delay as needed
+      }, i * delay); // Регулирует задержку по мере необходимости
     }
   };
 
   const prevSlide = (times = 1, delay = 0) => {
-    if (isAnimating) return; // Prevent new animation if already animating
+    if (isAnimating) return; // Предотвращает новую анимацию, если текущая еще не завершена
     setIsAnimating(true);
     clearTimeout(animationTimeout.current);
 
@@ -62,18 +76,29 @@ const Slider = ({ slides }) => {
           }
           return newIndex;
         });
-      }, i * delay); // Adjust delay as needed
+      }, i * delay); // Регулирует задержку по мере необходимости
     }
   };
 
-  const getSlideClass = (index) => {
-    const relativeIndex = (index + totalSlides - currentIndex) % totalSlides;
-    if (relativeIndex === centralSlideIndex) {
-      return 'slide center';
-    } else if (relativeIndex < visibleSlidesCount) {
-      return 'slide';
-    } else {
-      return 'slide hidden';
+  const handleSwipeStart = (e) => {
+    startX.current = e.touches[0].clientX;
+  };
+
+  const handleSwipeEnd = (e) => {
+    endX.current = e.changedTouches[0].clientX;
+    const swipeDistance = startX.current - endX.current;
+
+    // Определите порог для дистанции свайпа, чтобы считать его действительным свайпом
+    const swipeThreshold = 50;
+
+    if (Math.abs(swipeDistance) > swipeThreshold) {
+      if (swipeDistance > 0) {
+        // Свайп влево
+        nextSlide(1);
+      } else {
+        // Свайп вправо
+        prevSlide(1);
+      }
     }
   };
 
@@ -109,7 +134,7 @@ const Slider = ({ slides }) => {
           styles.height = '270px';
           break;
         case centralSlideIndex:
-          styles.height = '300px'; // Assuming 300px is the full height you mentioned
+          styles.height = '300px'; // Предполагаем, что 300px - это полная высота, которую вы упомянули
           break;
         default:
           styles.height = '200px';
@@ -119,47 +144,76 @@ const Slider = ({ slides }) => {
     return styles;
   };
 
+  const getSlideClass = (index) => {
+    const relativeIndex = (index + totalSlides - currentIndex) % totalSlides;
+    if (relativeIndex === centralSlideIndex) {
+      return 'slide center';
+    } else if (relativeIndex < visibleSlidesCount) {
+      return 'slide';
+    } else {
+      return 'slide hidden';
+    }
+  };
+
+  const getCurrentMobileSlide = () => {
+    const containerWidth = sliderRef.current.offsetWidth;
+    const scrollLeft = sliderRef.current.scrollLeft;
+    const slideFullWidth = (containerWidth * (fixedSlideWidth / 100)) + (slideMargin * 2); // Полная ширина слайда, включая отступы
+
+    // Вычисляем индекс текущего центрального слайда
+    const centralSlide = Math.round(scrollLeft / slideFullWidth);
+    return centralSlide;
+  };
+
   useLayoutEffect(() => {
     const handleResize = () => {
       const containerWidth = document.querySelector('.slider-container').offsetWidth;
-      const slideMargin = 10; // Adjust as needed
-      const centralSlideWidth = containerWidth * 0.4; // 40% of container width
-      const totalMarginWidth = (visibleSlidesCount - 1) * (slideMargin * 2); // Total margin width
-      const remainingWidth = containerWidth - centralSlideWidth - totalMarginWidth; // Remaining width for other slides
-      const sideSlideWidth = remainingWidth / (visibleSlidesCount - 0.85); // Width of each side slide
+      const slideMargin = 10; // Регулируйте по мере необходимости
+      const centralSlideWidth = containerWidth * 0.4; // 40% ширины контейнера
+      const totalMarginWidth = (visibleSlidesCount - 1) * (slideMargin * 2); // Общая ширина отступов
+      const remainingWidth = containerWidth - centralSlideWidth - totalMarginWidth; // Оставшаяся ширина для других слайдов
+      const sideSlideWidth = remainingWidth / (visibleSlidesCount - 0.80); // Ширина каждого бокового слайда
 
       document.documentElement.style.setProperty('--slide-margin', `${slideMargin}px`);
       document.documentElement.style.setProperty('--central-slide-width', `${centralSlideWidth}px`);
       document.documentElement.style.setProperty('--side-slide-width', `${sideSlideWidth}px`);
-      setSlideWidth(sideSlideWidth + 2 * slideMargin); // Including the margins for the translateX calculation
-      setIsLoading(false); // Turn off loading after dimensions are set
+      setSlideWidth(sideSlideWidth + 2 * slideMargin); // Включая отступы для вычисления translateX
+      setIsLoading(false); // Отключить загрузку после установки размеров
     };
 
-    handleResize(); // Initial call to set values
+    if (!isMobile) {
+      handleResize(); // Начальный вызов для установки значений
+    }
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile) {
+      setIsLoading(false); // Отключить загрузку на мобильных устройствах
+    }
+  }, [isMobile]);
 
   const handleMouseMove = (e) => {
-    if (isAnimating) return; // Prevent handling mouse move during animation
+    if (isAnimating || isMobile) return; // Предотвращает обработку движения мыши во время анимации или на мобильных устройствах
 
     const sliderRect = sliderRef.current.getBoundingClientRect();
     const mouseX = e.clientX - sliderRect.left;
 
-    const centralSlideWidth = sliderRect.width * 0.4; // Width of central slide
-    const sideSlideWidth = (sliderRect.width - centralSlideWidth) / (visibleSlidesCount - 0.85); // Width of each side slide
+    const centralSlideWidth = sliderRect.width * 0.4; // Ширина центрального слайда
+    const sideSlideWidth = (sliderRect.width - centralSlideWidth) / (visibleSlidesCount - 0.85); // Ширина каждого бокового слайда
 
     const zones = [
-      sideSlideWidth * 1, // Zone 1: 100% of side slide
-      sideSlideWidth * 2, // Zone 2: 200% of side slide
-      sideSlideWidth * 3, // Zone 3: 300% of side slide
-      centralSlideWidth, // Central slide start (Zone 4 start)
-      sliderRect.width - sideSlideWidth * 3, // Zone 5: 300% of side slide from right
-      sliderRect.width - sideSlideWidth * 2, // Zone 6: 200% of side slide from right
-      sliderRect.width - sideSlideWidth * 1 // Zone 7: 100% of side slide from right
+      sideSlideWidth * 1, // Зона 1: 100% бокового слайда
+      sideSlideWidth * 2, // Зона 2: 200% бокового слайда
+      sideSlideWidth * 3, // Зона 3: 300% бокового слайда
+      centralSlideWidth, // Начало центрального слайда (начало Зоны 4)
+      sliderRect.width - sideSlideWidth * 3, // Зона 5: 300% бокового слайда с правой стороны
+      sliderRect.width - sideSlideWidth * 2, // Зона 6: 200% бокового слайда с правой стороны
+      sliderRect.width - sideSlideWidth * 1 // Зона 7: 100% бокового слайда с правой стороны
     ];
 
     if (mouseX < zones[0]) {
@@ -219,26 +273,49 @@ const Slider = ({ slides }) => {
     return [...clonesBefore, ...slides, ...clonesAfter];
   };
 
+  const getSlideClassMobile = (index) => {
+    const relativeIndex = (index + totalSlides - currentIndex) % totalSlides;
+    if (relativeIndex === visibleSlidesCount + 1) { // Исправляем здесь
+      return 'slide center';
+    } else {
+      return 'slide';
+    }
+  };
+
+  const renderDots = () => {
+    return (
+      <div className="slide-dots">
+        {slides.map((_, index) => {
+          const isActive = ((currentIndex - visibleSlidesCount) % slidesLength) === index;
+          return (
+            <div key={index} className={`dot ${isActive ? 'active' : ''}`} />
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
-    <div className="slider-container" ref={sliderRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+    <div className="slider-container" ref={sliderRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
       {isLoading ? (
         <div className="loading-screen">Loading...</div>
       ) : (
         <>
-          <button onClick={() => prevSlide(1)} className="nav left-nav">‹</button>
+          {!isMobile && <button onClick={() => prevSlide(1)} className="nav left-nav">‹</button>}
           <div className="slider-wrapper">
-            <div className="slider" style={{ transform: `translateX(-${currentIndex * slideWidth}px)` }}>
+            <div className="slider" style={{ transform: `translateX(-${isMobile ? currentIndex * ((fixedSlideWidth / 100 * document.querySelector('.slider-container').offsetWidth) + slideMargin * 2) : currentIndex * slideWidth}px)` }}>
               {getClonedSlides().map((slide, index) => (
                 <Slide
                   key={index}
                   slide={slide}
-                  className={getSlideClass(index)}
-                  style={getSlideStyle(index)}
+                  className={isMobile ? getSlideClassMobile(index) : getSlideClass(index)}
+                  style={isMobile ? { flex: '0 0 70%', margin: '0 10px', filter: `grayscale(${index === currentIndex ? 0 : 1})`, opacity: 1, boxShadow: `${index === currentIndex ? '0 0 15px rgba(255, 255, 255, 0.4)' : 'none'}` } : getSlideStyle(index)}
                 />
               ))}
             </div>
           </div>
-          <button onClick={() => nextSlide(1)} className="nav right-nav">›</button>
+          {!isMobile && <button onClick={() => nextSlide(1)} className="nav right-nav">›</button>}
+          {isMobile && renderDots()} {/* Add dots for mobile view */}
         </>
       )}
     </div>

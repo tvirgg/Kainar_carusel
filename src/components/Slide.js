@@ -1,9 +1,9 @@
 import React from 'react';
 import './Slide.css';
 
-const Slide = ({ slide, className, style, onMouseEnter, onMouseLeave }) => {
+const Slide = ({ slide, className, style }) => {
   return (
-    <div className={className} style={style} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <div className={className} style={style}>
       <div className="slide-background" style={{ backgroundImage: `url(${slide.image})` }}></div>
       <div className="slide-content">
         <h4>{slide.category}</h4>

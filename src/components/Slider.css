@@ -1,4 +1,3 @@
-/* Slider.css */
 .slider-container {
   position: relative;
   width: 80%;
@@ -31,11 +30,11 @@
 }
 
 .left-nav {
-  left: calc(30% - 2em); 
+  left: calc(30% - 2em);
 }
 
 .right-nav {
-  right: calc(30% - 2em); 
+  right: calc(30% - 2em);
 }
 
 .slide {
@@ -94,4 +93,60 @@
   font-size: 24px;
   color: #fff;
   background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Responsive Design for Mobile */
+@media (max-width: 768px) {
+  .slider-container {
+    width: 100%;
+  }
+
+  .slide {
+    flex: 0 0 70%;
+    height: 0;
+    padding-top: 70%; /* Это установит высоту равной ширине */
+    margin: 0 10px; /* Center slides */
+    filter: grayscale(1); /* Черно-белый фильтр по умолчанию */
+    left: 12%;
+    color: rgba(255, 255, 255, 0.8);
+    transition: filter 0.5s ease-in-out, box-shadow 0.8s ease-in-out; /* Add box-shadow transition */
+    opacity: 0; /* Добавить opacity: 0 по умолчанию */
+  }
+
+  .slide.center {
+    filter: grayscale(0); /* Цветной центральный слайд */
+    opacity: 1; /* Добавить opacity: 1 для центрального слайда */
+  }
+
+  .nav {
+    display: none; /* Hide navigation arrows */
+  }
+  .slide-content {
+    opacity: 1 !important;
+    position: relative;
+    top: -33vw;
+  }
+}
+
+.slide-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  margin: 0 5px;
+  transition: background-color 0.3s ease-in-out;
+}
+
+.dot.active {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 1);
 }
